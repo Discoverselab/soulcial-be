@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.modules.admin.dao.MemberConnectMapper">
+
+    <select id="getNewList" resultType="org.springblade.modules.admin.pojo.vo.ConnectVo">
+        SELECT c.id as id,
+               c.user_id as userId,
+               c.to_user_id as toUserId,
+               c.`status` as status,
+               m.user_name as userName,
+               m.avatar as userHeadImgUrl,
+               m.address as userBnbAddress
+        FROM
+            tb_member_connect c LEFT JOIN tb_member m on c.user_id = m.id
+        WHERE c.to_user_id = #{loginUserId} and c.`status` = 0 and c.is_deleted = 0 ORDER BY c.create_time desc
+    </select>
+
+    <select id="getStarList" resultType="org.springblade.modules.admin.pojo.vo.ConnectVo">
+        (SELECT c.id as id,
+                c.user_id as userId,
+                c.to_user_id as toUserId,
+                c.`status` as status,
+                c.create_time as createTime,
+                m.user_name as userName,
+                m.avatar as userHeadImgUrl,
+                m.address as userBnbAddress
+         FROM
+             tb_member_connect c LEFT JOIN tb_member m on c.user_id = m.id
+         WHERE c.to_user_id = #{loginUserId} and c.`status` = 2 and c.is_deleted = 0 ORDER BY c.create_time desc)
+        UNION
+        (SELECT c.id as id,
+                c.user_id as userId,
+                c.to_user_id as toUserId,
+                c.`status` as status,
+                c.create_time as createTime,
+                m.user_name as userName,
+                m.avatar as userHeadImgUrl,
+                m.address as userBnbAddress
+         FROM
+             tb_member_connect c LEFT JOIN tb_member m on c.to_user_id = m.id
+         WHERE c.user_id = #{loginUserId} and c.`status` = 2 and c.is_deleted = 0 ORDER BY c.create_time desc)
+    </select>
+
+    <select id="getAllList" resultType="org.springblade.modules.admin.pojo.vo.ConnectVo">
+        (SELECT c.id as id,
+                c.user_id as userId,
+                c.to_user_id as toUserId,
+                c.`status` as status,
+                c.create_time as createTime,
+                m.user_name as userName,
+                m.avatar as userHeadImgUrl,
+                m.address as userBnbAddress
+         FROM
+             tb_member_connect c LEFT JOIN tb_member m on c.user_id = m.id
+         WHERE c.to_user_id = #{loginUserId} and c.`status` <![CDATA[ != ]]> 0 and c.is_deleted = 0  ORDER BY c.create_time desc)
+        UNION
+        (SELECT c.id as id,
+                c.user_id as userId,
+                c.to_user_id as toUserId,
+                c.`status` as status,
+                c.create_time as createTime,
+                m.user_name as userName,
+                m.avatar as userHeadImgUrl,
+                m.address as userBnbAddress
+         FROM
+             tb_member_connect c LEFT JOIN tb_member m on c.to_user_id = m.id
+         WHERE c.user_id = #{loginUserId} and c.`status` <![CDATA[ != ]]> 0 and c.is_deleted = 0 ORDER BY c.create_time desc)
+    </select>
+
+    <select id="getConnectNum" resultType="java.lang.Integer">
+        SELECT count(*) FROM tb_member_connect WHERE `status` <![CDATA[ != ]]> 0 and is_deleted = 0 and (user_id = #{userId} or to_user_id = #{userId})
+    </select>
+</mapper>

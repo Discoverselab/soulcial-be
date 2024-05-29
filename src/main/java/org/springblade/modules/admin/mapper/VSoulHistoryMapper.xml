@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.modules.admin.dao.VSoulHistoryMapper">
+
+
+    <select id="getVSoulPriceTop10" resultType="org.springblade.modules.admin.pojo.dto.VSoulPriceTop10Dto"
+            >
+        SELECT user_id, user_name, total_v_soul_price, create_time
+        FROM (SELECT a.user_id,
+                     b.user_name,
+                     SUM(a.v_soul_price) AS total_v_soul_price,
+                     MIN(a.create_time)  AS create_time
+              FROM tb_vsoul_history a,
+                   tb_member b
+              WHERE a.user_id = b.id
+                AND a.is_deleted = 0
+                AND b.is_deleted = 0
+                AND user_id = #{userId}
+                AND a.create_time >= #{start}
+                AND a.create_time &lt; #{end}
+              LIMIT 1) aa
+        UNION ALL
+        SELECT user_id, user_name, total_v_soul_price, create_time
+        FROM (SELECT a.user_id,
+                     b.user_name,
+                     SUM(a.v_soul_price) AS total_v_soul_price,
+                     MAX(a.create_time)  AS create_time
+              FROM tb_vsoul_history a,
+                   tb_member b
+              WHERE a.user_id = b.id
+                AND a.is_deleted = 0
+                AND b.is_deleted = 0
+                AND a.create_time >= #{start}
+                AND a.create_time &lt; #{end}
+              GROUP BY a.user_id
+              ORDER BY total_v_soul_price DESC,
+                       create_time ASC
+              LIMIT 10) bb;
+    </select>
+</mapper>

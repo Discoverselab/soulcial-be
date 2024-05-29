@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.modules.admin.dao.ActiveMapper">
+        <select id="selectActiveWithUser" resultType="org.springblade.modules.admin.pojo.po.ActivePO">
+            SELECT a.*, m.username, m.avatar AS userImg
+            FROM tb_active AS a
+                     LEFT JOIN tb_member AS m ON a.userAddress = m.address
+                LIMIT #{page.offset}, #{page.size}
+        </select>
+<!--    <select id="selectPageVo" resultType="org.springblade.modules.admin.pojo.po.ActivePO">-->
+<!--        SELECT b.pick_status,a.* FROM-->
+<!--        tb_active a,-->
+<!--        tb_pfp_token b-->
+<!--        WHERE a.token_id = b.real_token_id-->
+<!--        <if test='pickStatus != null and pickStatus != ""'>-->
+<!--            AND b.pick_status = #{pickStatus} " +-->
+<!--        </if>-->
+<!--        AND a.is_deleted = 0 AND b.is_deleted = 0 ORDER BY a.create_time DESC-->
+<!--    </select>-->
+</mapper>

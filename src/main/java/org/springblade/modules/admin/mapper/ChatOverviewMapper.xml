@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.modules.admin.dao.ChatOverviewMapper">
+
+
+    <resultMap type="org.springblade.modules.admin.pojo.dto.ChatListDto" id="getChatListMap">
+        <id property="id" column="id"/>
+        <result property="title" column="groupCode"/>
+        <result property="eventBannerUrl" column="event_url"/>
+        <result property="type" column="type"/>
+        <result property="status" column="status"/>
+        <result property="title" column="title"/>
+        <result property="tokenId" column="token_id"/>
+        <result property="time" column="time"/>
+        <result property="sendUserId" column="sendUserId"/>
+        <result property="content" column="content"/>
+        <result property="messageType" column="messageType"/>
+        <collection property="userIds" ofType="long">
+            <result column="userIds" />
+        </collection>
+    </resultMap>
+
+    <select id="getChatList" resultMap="getChatListMap">
+        SELECT a.id,
+               a.title,
+               IFNULL(token_id,(SELECT event_banner FROM tb_event WHERE chat_overview_id = a.id )) as	event_url ,
+               a.type,
+               a.`status`,
+               token_id,
+               IFNULL(b.create_time, a.create_time) AS `time`,
+               b.user_id                            AS sendUserId,
+               IFNULL(b.content, '')                AS content,
+               c.user_id                            AS userIds,
+               b.messagetype
+        FROM tb_chat_overview a
+                 LEFT JOIN (
+
+            SELECT tcd.chat_id,
+                   tcd.create_time,
+                   tcd.user_id,
+                   tcd.content,
+                   tcd.type AS messagetype
+            FROM tb_chat_detail AS tcd
+                     INNER JOIN (SELECT chat_id,
+                                        MAX(create_time) AS max_create_time
+                                 FROM tb_chat_detail
+                                 WHERE chat_id IN (SELECT chat_id FROM tb_chat_member WHERE user_id = #{userId} )
+                                 GROUP BY chat_id) AS tcd_max ON tcd.chat_id = tcd_max.chat_id AND
+                                                                 tcd.create_time =
+                                                                 tcd_max.max_create_time
+            ORDER BY tcd.create_time DESC
+
+        ) b ON a.id = b.chat_id
+                 JOIN tb_chat_member c ON a.id = c.chat_id
+        WHERE c.user_id = #{userId};
+    </select>
+    <select id="getChatDetailList" resultType="org.springblade.modules.admin.pojo.dto.ChatDetailListDto">
+        SELECT
+        chat_id AS chatId,
+        user_id AS sendUserId,
+        id AS messageId,
+        content,
+        type,
+        create_time AS `time`
+        FROM
+        tb_chat_detail
+        WHERE
+        chat_id = #{chatId}
+        <if test="messageId != null">
+            AND id &lt; #{messageId}
+        </if>
+        ORDER BY id desc
+        LIMIT #{size};
+    </select>
+    <select id="getChatDetail" resultType="org.springblade.modules.admin.pojo.dto.ChatDetailDto">
+
+        SELECT
+            token_id AS tokenId,
+            IF
+            (
+                    type = 0,(
+                SELECT
+                    address
+                FROM
+                    tb_member
+                WHERE
+                        id IN (
+                        SELECT DISTINCT
+                            bb.user_id
+                        FROM
+                            tb_chat_overview aa,
+                            tb_chat_member bb
+                        WHERE
+                            aa.id = bb.chat_id
+                          AND aa.id = a.id
+                          AND user_id != #{userId}
+                    )
+                LIMIT 1
+            ),
+                    ""
+            ) AS address,
+            IF
+            (
+                    type = 0,(
+                SELECT
+                    avatar
+                FROM
+                    tb_member
+                WHERE
+                        id IN (
+                        SELECT DISTINCT
+                            bb.user_id
+                        FROM
+                            tb_chat_overview aa,
+                            tb_chat_member bb
+                        WHERE
+                            aa.id = bb.chat_id
+                          AND aa.id = a.id
+                          AND user_id != #{userId}
+                    )
+                LIMIT 1
+            ),                    IFNULL(( SELECT DISTINCT square_picture_url FROM tb_pfp_token WHERE real_token_id = a.token_id ) ,
+                           ( SELECT event_banner FROM tb_event WHERE chat_overview_id = a.id ))
+            ) AS avatar,
+            b.memberNumber AS memberNumber,
+            IF(type=0,
+               (SELECT
+                    user_name
+                FROM
+                    tb_member
+                WHERE
+                        id IN (
+                        SELECT DISTINCT
+                            bb.user_id
+                        FROM
+                            tb_chat_overview aa,
+                            tb_chat_member bb
+                        WHERE
+                            aa.id = bb.chat_id
+                          AND aa.id = a.id
+                          AND user_id != #{userId}
+                    )
+                LIMIT 1 ),a.title
+            ) AS title,
+            IF(type=0,"",
+               (SELECT
+                    id
+                FROM
+                    tb_member
+                WHERE
+                        id IN (
+                        SELECT DISTINCT
+                            bb.user_id
+                        FROM
+                            tb_chat_overview aa,
+                            tb_chat_member bb
+                        WHERE
+                            aa.id = bb.chat_id
+                          AND aa.id = a.id
+                          AND user_id != #{userId}
+                    )
+                LIMIT 1 )
+            ) AS userId,
+            a.`status` AS `status`,
+            type
+        FROM
+            tb_chat_overview a,
+            ( SELECT COUNT( DISTINCT user_id ) AS memberNumber, chat_id FROM tb_chat_member GROUP BY chat_id ) b
+        WHERE
+            a.id = b.chat_id
+          AND id = #{chatId};
+
+    </select>
+
+
+    <resultMap type="org.springblade.modules.admin.pojo.dto.ChatListUserIdsDto" id="getChatUserIdsMap">
+        <id property="chatId" column="chat_id"/>
+        <collection property="userIds" ofType="long">
+            <result column="user_id" />
+        </collection>
+    </resultMap>
+
+    <select id="getChatUserIds" resultMap="getChatUserIdsMap"
+            parameterType="java.lang.Long">
+        SELECT chat_id, user_id
+        FROM tb_chat_member
+        WHERE chat_id IN (SELECT DISTINCT chat_id FROM tb_chat_member WHERE user_id = #{userId});
+    </select>
+    <select id="getUnreadNumByUserId" resultType="org.springblade.modules.admin.pojo.dto.MessageHistoryDto"
+            parameterType="java.lang.Long">
+        SELECT
+            csh.chat_id,
+            (SELECT COUNT(*)
+             FROM tb_chat_detail AS cd
+             WHERE cd.chat_id = csh.chat_id
+               AND cd.create_time > csh.end_time) AS unreadNum
+        FROM
+            (SELECT chat_id, MAX(end_time) AS end_time
+             FROM tb_chat_session_history
+             WHERE user_id = #{userId}
+               AND is_deleted != '1' -- 假设 is_deleted = '1' 表示记录已删除
+             GROUP BY chat_id) AS csh
+    </select>
+    <select id="getUserChatRooms" resultType="org.springblade.modules.admin.pojo.dto.UserChatRoomsDto">
+        SELECT
+            a.user_id,
+            GROUP_CONCAT( a.chat_id ORDER BY a.chat_id ASC ) AS chat_rooms
+        FROM
+            tb_chat_member a,
+            tb_chat_overview b
+        WHERE
+            a.is_deleted = 0
+          AND b.`status` = '1'
+          AND a.chat_id = b.id
+        GROUP BY
+            a.user_id;
+    </select>
+    <select id="getChatRoomUsers" resultType="org.springblade.modules.admin.pojo.dto.ChatRoomUsersDto">
+        SELECT
+            a.chat_id,
+            GROUP_CONCAT( a.user_id ORDER BY a.user_id ASC ) AS user_ids
+        FROM
+            tb_chat_member a,
+            tb_chat_overview b
+        WHERE
+            a.is_deleted = 0
+          AND b.`status` = '1'
+          AND a.chat_id = b.id
+        GROUP BY
+            a.chat_id;
+    </select>
+    <select id="getChatHistoryChatId" resultType="java.lang.Long" parameterType="java.lang.Long">
+        SELECT chat_id
+        FROM tb_chat_session_history
+        WHERE user_id = #{userId}
+          AND start_time is not NULL
+        ORDER BY start_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="getChatRoomUsers2" resultType="org.springblade.modules.admin.pojo.dto.ChatRoomUsersDto">
+        SELECT
+            chat_id,
+            GROUP_CONCAT(user_id ORDER BY user_id ASC) AS user_ids
+        FROM
+            tb_chat_member
+        WHERE
+            is_deleted = 0  and chat_id = #{chatId}
+        GROUP BY
+            chat_id;
+    </select>
+
+
+</mapper>

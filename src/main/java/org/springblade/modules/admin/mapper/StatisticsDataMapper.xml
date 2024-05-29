@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.springblade.modules.admin.dao.StatisticsDataMapper">
+
+    <select id="selectByDateTime" resultType="org.springblade.modules.admin.pojo.po.StatisticsDataPO"
+            parameterType="java.lang.String">
+        SELECT
+        #{dateTime} AS stat_date,
+        new_users_id_unique.result AS "new_users_id_unique",
+        new_users_address_unique.result AS "new_users_address_unique",
+        minted_nft_count.result AS "minted_nft_count",
+        users_participating_pump.result AS "users_participating_pump",
+        pump_occurrences.result AS "pump_occurrences",
+        raffle_occurrences.result AS "raffle_occurrences",
+        pump_total_amount.result AS "pump_total_amount",
+        cumulative_users.result AS "cumulative_users",
+        cumulative_minted_nft.result AS "cumulative_minted_nft",
+        cumulative_pump_amount.result AS "cumulative_pump_amount"
+        FROM
+        (SELECT "用户注册数量（用户id去重）" AS "描述" ,CONCAT(COUNT(DISTINCT id) ) AS "result" FROM tb_member WHERE
+        create_time LIKE CONCAT( #{dateTime} ,'%')) AS new_users_id_unique ,
+        (SELECT "用户注册数量（用户address去重）" AS "描述" ,COUNT(DISTINCT address)AS "result" FROM tb_member WHERE
+        create_time LIKE CONCAT( #{dateTime} ,'%')) AS new_users_address_unique,
+        (SELECT "当日mint NFT数" AS "描述", COUNT(DISTINCT real_token_id) AS "result" FROM tb_pfp_token WHERE
+        create_time LIKE CONCAT( #{dateTime} ,'%')) AS minted_nft_count,
+        (SELECT "当参与pump的用户数" AS "描述", COUNT(DISTINCT user_address) AS "result" FROM tb_active WHERE type = '1'
+        AND create_time LIKE CONCAT( #{dateTime} ,'%')) AS users_participating_pump,
+        (SELECT "当参与pump的次数" AS "描述", COUNT(DISTINCT id) AS "result" FROM tb_active WHERE type = '1' AND
+        create_time LIKE CONCAT( #{dateTime} ,'%')) AS pump_occurrences,
+        (SELECT "当日开奖次数" AS "描述" , COUNT(DISTINCT id) AS "result" FROM tb_active WHERE type = '3' AND
+        create_time LIKE CONCAT( #{dateTime} ,'%')) AS raffle_occurrences,
+        (SELECT "当日pump的总金额" AS "描述" , IF(SUM(price) IS NULL,0,SUM(price)) AS "result" FROM tb_wallect_history
+        WHERE type = '3' AND create_time LIKE CONCAT( #{dateTime} ,'%')) AS pump_total_amount,
+        (SELECT "累计注册用户数" AS "描述",COUNT(DISTINCT address) AS "result" FROM tb_member WHERE create_time
+            &lt;  CONCAT
+        ( #{dateTime} )) AS cumulative_users,
+        (SELECT "累计mint NFT数" AS "描述", COUNT(DISTINCT real_token_id) AS "result" FROM tb_pfp_token WHERE
+        create_time &lt;  CONCAT( #{dateTime} )) AS cumulative_minted_nft,
+        (SELECT "累积pump的总金额" AS "描述", SUM(price) AS "result" FROM tb_wallect_history WHERE type = '3' AND
+        create_time &lt;  CONCAT( #{dateTime} )) AS cumulative_pump_amount;
+
+    </select>
+    <select id="selectByDateTimeNew" resultType="org.springblade.modules.admin.pojo.po.StatisticsDataPONew"
+            parameterType="java.lang.String">
+        SELECT #{dateTime} AS date,
+               a1.a1       AS a1,
+               a2.a2       AS a2,
+               a3.a3       AS a3,
+               a4.a4       AS a4,
+               a5.a5       AS a5,
+               a6.a6       AS a6,
+               a7.a7       AS a7,
+               a8.a8       AS a8,
+               a9.a9       AS a9,
+               a10.a10     AS a10,
+               a11.a11     AS a11,
+               a12.a12     AS a12,
+               a13.a13     AS a13,
+               a14.a14     AS a14,
+               a15.a15     AS a15,
+               a16.a16     AS a16,
+               a17.a17     AS a17,
+               a18.a18     AS a18,
+               a19.a19     AS a19,
+               a20.a20     AS a20,
+               a21.a21     AS a21
+        FROM
+            -- 用户
+            -- 1. 每天新增连接钱包用户数（包含有分数的用户）
+            (SELECT COUNT(DISTINCT address) AS a1
+             FROM tb_member
+             WHERE create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a1,
+            -- 2. 累积连接钱包用户数
+            (SELECT COUNT(DISTINCT address) AS a2
+             FROM tb_member
+             WHERE create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted =
+                   '0') AS a2,
+            -- 3. 每天新增有分数用户数
+            (SELECT COUNT(DISTINCT address) AS a3
+             FROM tb_member
+             WHERE create_time LIKE CONCAT(#{dateTime}, '%')
+               AND level_score IS NOT NULL
+               AND is_deleted = '0') AS a3,
+            -- 4. 累积有分数用户数
+            (SELECT COUNT(DISTINCT address) AS a4
+             FROM tb_member
+             WHERE create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND level_score IS NOT NULL
+               AND is_deleted = '0') AS a4,
+            -- NFT
+            -- 5. 每天新mint NFT数量
+            (SELECT COUNT(DISTINCT real_token_id) AS a5
+             FROM tb_pfp_token
+             WHERE create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a5,
+            -- 6. 累积mint NFT数量
+            (SELECT COUNT(DISTINCT real_token_id) AS a6
+             FROM tb_pfp_token
+             WHERE create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted = '0') AS a6,
+            -- 7. 目前NFT挂单数量（截止到0112，从0113开始，每天会不一样）
+            (SELECT COUNT(DISTINCT real_token_id) AS a7
+             FROM tb_pfp_token
+             WHERE pick_status = "1"
+               AND create_time &lt; CONCAT
+                                    (#{dateTime}, " 23:59:59")) AS a7,
+            -- 8. 新增NFT挂单
+            (SELECT COUNT(DISTINCT token_id) AS a8
+             FROM tb_active
+             WHERE type = '0'
+               AND create_time LIKE
+                   CONCAT(#{dateTime}, '%')
+               AND token_id NOT IN (SELECT DISTINCT t1.token_id
+                                    FROM tb_active AS t1
+                                             INNER JOIN
+                                         (SELECT token_id,
+                                                 MAX(create_time) AS create_time
+                                          FROM tb_active
+                                          GROUP BY token_id) AS t2
+                                         ON
+                                             t1.token_id = t2.token_id
+                                                 AND t1.create_time = t2.create_time
+                                                 AND t1.create_time LIKE CONCAT(#{dateTime}, '%')
+                                                 AND t1.type = 2)
+               AND is_deleted = '0') AS a8,
+            -- PUMP
+            -- 9. 每天参与pump的用户数
+            (SELECT COUNT(DISTINCT user_address) AS a9
+             FROM tb_active
+             WHERE type = '1'
+               AND create_time LIKE
+                   CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a9,
+            -- 10. 累积参与过pump的用户数
+            (SELECT COUNT(DISTINCT user_address) AS a10
+             FROM tb_active
+             WHERE type = '1'
+               AND create_time &lt;
+                   CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted = '0') AS a10,
+            -- 11. 每天发生pump的次数
+            (SELECT COUNT(DISTINCT id) AS a11
+             FROM tb_active
+             WHERE type = '1'
+               AND create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a11,
+            -- 12. 累积发生pump的次数
+            (SELECT COUNT(DISTINCT id) AS a12
+             FROM tb_active
+             WHERE type = '1'
+               AND create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted = '0') AS a12,
+            -- 13. 每天发生开奖次数
+            (SELECT COUNT(DISTINCT id) AS a13
+             FROM tb_active
+             WHERE type = '3'
+               AND create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a13,
+            -- 14. 累积发生开奖次数
+            (SELECT COUNT(DISTINCT id) AS a14
+             FROM tb_active
+             WHERE type = '3'
+               AND create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted = '0') AS a14,
+
+            -- 积分
+            -- 15. 每天发放积分总量
+            (SELECT SUM(v_soul_price) AS a15
+             FROM tb_vsoul_history
+             WHERE create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a15,
+            -- 16. 累积发放积分总量
+            (SELECT SUM(v_soul_price) AS a16
+             FROM tb_vsoul_history
+             WHERE create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted
+                 = '0') AS a16,
+            -- 17. 截止到目前有积分的用户数量（截止到0112，从0113开始，每天会不一样）
+            (SELECT COUNT(DISTINCT user_id) AS a17
+             FROM tb_user_vsoul
+             WHERE v_soul_price &gt; 0
+               AND create_time &lt;
+                   CONCAT(#{dateTime})
+               AND is_deleted = '0') AS a17,
+
+            -- 金额
+            -- 18. 每天参与pump的总金额
+            (SELECT SUM(price) AS a18
+             FROM tb_wallect_history
+             WHERE type = '3'
+               AND create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a18,
+            -- 19. 累积pump的总金额（pump就算，取消pump不算）
+            (SELECT SUM(price) AS a19
+             FROM tb_wallect_history
+             WHERE type = '3'
+               AND create_time &lt; CONCAT(#{dateTime}, " 23:59:59")
+               AND is_deleted = '0') AS a19,
+            -- 20. 非官方邀请用户数 (除soul-befb9e，链接钱包就算;
+            (SELECT COUNT(DISTINCT address) AS a20
+             FROM tb_member
+             WHERE invite_user_id != (SELECT id
+                                      FROM tb_member
+                                      WHERE super_invite_code REGEXP 'soul-befb9e')
+               AND address NOT IN (SELECT DISTINCT address FROM tb_auto_member)
+               AND create_time LIKE CONCAT(#{dateTime}, '%')
+               AND is_deleted = '0') AS a20,
+            (SELECT COUNT(DISTINCT ip) AS a21 FROM tb_active_users WHERE date like #{dateTime} ) AS a21;
+    </select>
+
+
+</mapper>
+
+
+
+
